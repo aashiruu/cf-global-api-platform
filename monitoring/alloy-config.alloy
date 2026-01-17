@@ -1,0 +1,71 @@
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+loki.write "grafana_loki" {
+  endpoint {
+    url = "https://logs-prod-039.grafana.net/loki/api/v1/push"
+    basic_auth {
+      username = "1449557"
+      password = sys.env("GRAFANA_CLOUD_TOKEN")
+    }
+  }
+}
+
+discovery.docker "docker_containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+loki.source.docker "all_containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.docker.docker_containers.targets
+  forward_to = [loki.write.grafana_loki.receiver]
+  labels     = { job = "docker" }
+  relabel_rules = discovery.relabel.docker_labels.rules
+}
+
+discovery.relabel "docker_labels" {
+  targets = discovery.docker.docker_containers.targets
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+}
+
+otelcol.receiver.otlp "default" {
+  http { endpoint = "0.0.0.0:4318" }
+  grpc { endpoint = "0.0.0.0:4317" }
+
+  output {
+    metrics = [otelcol.exporter.prometheus.grafana_cloud.input]
+    traces  = [otelcol.exporter.otlp.grafana_tempo.input]
+  }
+}
+
+otelcol.exporter.prometheus "grafana_cloud" {
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = "https://prometheus-prod-36-prod-us-west-0.grafana.net/api/prom/push"
+    auth {
+      username = "2907761"
+      password = sys.env("GRAFANA_CLOUD_TOKEN")
+    }
+  }
+}
+
+otelcol.exporter.otlp "grafana_tempo" {
+  client {
+    endpoint = "tempo-prod-10-prod-us-west-0.grafana.net:443"
+    auth     = otelcol.auth.basic.grafana_cloud.handler
+  }
+}
+
+otelcol.auth.basic "grafana_cloud" {
+  username = "1443867"
+  password = sys.env("GRAFANA_CLOUD_TOKEN")
+}

@@ -1,3 +1,5 @@
 fastapi
 uvicorn
-prometheus-client
+python-json-logger
+prometheus-fastapi-instrumentator
+psutil
