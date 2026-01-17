@@ -4,11 +4,8 @@ import logging
 from fastapi import FastAPI
 from pythonjsonlogger import jsonlogger
 from prometheus_fastapi_instrumentator import Instrumentator
-from opentelemetry import trace
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 app = FastAPI()
-FastAPIInstrumentor.instrument_app(app)
 
 instrumentator = Instrumentator().instrument(app)
 
